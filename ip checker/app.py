@@ -248,16 +248,77 @@ class NetworkMonitor:
             'dst_country': packet_data.get('dst_geo', {}).get('country', 'Unknown')
         })
     
-    def detect_application_protocol(self, port):
-        """Detect application protocol based on port number"""
-        common_ports = {
-            21: 'FTP', 22: 'SSH', 23: 'Telnet', 25: 'SMTP', 53: 'DNS',
-            80: 'HTTP', 110: 'POP3', 143: 'IMAP', 443: 'HTTPS', 993: 'IMAPS',
-            995: 'POP3S', 3389: 'RDP', 5432: 'PostgreSQL', 3306: 'MySQL',
-            6379: 'Redis', 27017: 'MongoDB', 5900: 'VNC', 1723: 'PPTP',
-            1194: 'OpenVPN', 8080: 'HTTP-Alt', 8443: 'HTTPS-Alt'
-        }
-        return common_ports.get(port, f'Unknown-{port}')
+   def detect_application_protocol(self, port):
+    """Detect application protocol based on port number"""
+    common_ports = {
+        20: 'FTP-Data',
+        21: 'FTP',
+        22: 'SSH',
+        23: 'Telnet',
+        25: 'SMTP',
+        53: 'DNS',
+        67: 'DHCP-Server',
+        68: 'DHCP-Client',
+        69: 'TFTP',
+        80: 'HTTP',
+        110: 'POP3',
+        111: 'RPCBind',
+        123: 'NTP',
+        135: 'MS RPC',
+        137: 'NetBIOS-NS',
+        138: 'NetBIOS-DGM',
+        139: 'NetBIOS-SSN',
+        143: 'IMAP',
+        161: 'SNMP',
+        162: 'SNMP-Trap',
+        194: 'IRC',
+        389: 'LDAP',
+        443: 'HTTPS',
+        445: 'Microsoft-DS',
+        465: 'SMTPS',
+        500: 'ISAKMP',
+        514: 'Syslog',
+        546: 'DHCPv6-Client',
+        547: 'DHCPv6-Server',
+        587: 'SMTP-Submission',
+        631: 'IPP',
+        636: 'LDAPS',
+        993: 'IMAPS',
+        995: 'POP3S',
+        1080: 'SOCKS',
+        1194: 'OpenVPN',
+        1433: 'MSSQL',
+        1521: 'Oracle DB',
+        1723: 'PPTP',
+        2049: 'NFS',
+        2082: 'cPanel',
+        2083: 'cPanel SSL',
+        2086: 'WHM',
+        2087: 'WHM SSL',
+        2095: 'Webmail',
+        2096: 'Webmail SSL',
+        2181: 'Zookeeper',
+        2375: 'Docker',
+        2376: 'Docker TLS',
+        27017: 'MongoDB',
+        28017: 'MongoDB Web',
+        3306: 'MySQL',
+        3389: 'RDP',
+        4444: 'Metasploit',
+        5432: 'PostgreSQL',
+        5631: 'PCAnywhere',
+        5900: 'VNC',
+        6379: 'Redis',
+        8000: 'HTTP-Alt',
+        8080: 'HTTP-Alt',
+        8443: 'HTTPS-Alt',
+        8888: 'Web Proxy',
+        9000: 'SonarQube',
+        9090: 'Web Admin',
+        10000: 'Webmin',
+    }
+    return common_ports.get(port, f'Unknown-{port}')
+
     
     def analyze_payload(self, payload):
         """Analyze packet payload for security threats"""
