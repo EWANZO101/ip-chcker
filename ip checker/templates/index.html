@@ -1,0 +1,1230 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IP Abuse Checker - Dark Mode</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.2.1/flowbite.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.2.1/flowbite.min.css" rel="stylesheet" />
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {"50":"#eff6ff","100":"#dbeafe","200":"#bfdbfe","300":"#93c5fd","400":"#60a5fa","500":"#3b82f6","600":"#2563eb","700":"#1d4ed8","800":"#1e40af","900":"#1e3a8a","950":"#172554"}
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .status-clean { @apply bg-green-900 text-green-300 border border-green-800; }
+        .status-reports { @apply bg-yellow-900 text-yellow-300 border border-yellow-800; }
+        .status-high-risk { @apply bg-red-900 text-red-300 border border-red-800; }
+        .status-error { @apply bg-gray-900 text-gray-300 border border-gray-800; }
+        .status-loading { @apply bg-blue-900 text-blue-300 border border-blue-800; }
+        
+        .live-online { @apply bg-green-800 text-green-200 border border-green-700; }
+        .live-offline { @apply bg-red-800 text-red-200 border border-red-700; }
+        .live-timeout { @apply bg-orange-800 text-orange-200 border border-orange-700; }
+        .live-checking { @apply bg-blue-800 text-blue-200 border border-blue-700; }
+        .live-unknown { @apply bg-gray-800 text-gray-300 border border-gray-700; }
+        
+        /* Fix for hover state */
+        .hover-gray-750:hover { background-color: rgb(55 65 81); }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100">
+    <div class="min-h-screen">
+        <!-- Navigation -->
+        <nav class="bg-gray-800 border-b border-gray-700">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between h-16">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <h1 class="text-xl font-bold text-white">🛡️ IP Abuse Checker</h1>
+                        </div>
+                    </div>
+                    <div class="flex items-center">
+                        <span class="text-sm text-gray-300 mr-4">🕐 Live Daily Monitoring</span>
+                        <span id="ipStatus" class="text-xs px-2 py-1 rounded bg-gray-700 text-gray-300 mr-2">
+                            🔒 IP Restricted
+                        </span>
+                        <span id="dailyStatus" class="text-xs px-2 py-1 rounded bg-blue-700 text-blue-300">
+                            📊 Active
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+            <!-- Add IP Section -->
+            <div class="bg-gray-800 rounded-lg shadow-xl p-6 mb-6">
+                <h2 class="text-lg font-semibold text-white mb-4">Add IP Addresses</h2>
+                
+                <!-- Single IP Input -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Single IP Address</label>
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <div class="flex-1">
+                            <input 
+                                type="text" 
+                                id="ipInput" 
+                                placeholder="Enter IP address (e.g., 8.8.8.8)" 
+                                class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                onkeypress="handleKeyPress(event)"
+                            >
+                        </div>
+                        <button 
+                            onclick="addIP()" 
+                            class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800"
+                        >
+                            Add IP
+                        </button>
+                    </div>
+                </div>
+
+                <!-- IP Range Input -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-300 mb-2">IP Range</label>
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <div class="flex-1">
+                            <input 
+                                type="text" 
+                                id="rangeInput" 
+                                placeholder="Enter IP range (e.g., 192.168.1.1-192.168.1.10 or 192.168.1.0/24)" 
+                                class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                onkeypress="handleRangeKeyPress(event)"
+                            >
+                        </div>
+                        <button 
+                            onclick="addIPRange()" 
+                            class="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-gray-800"
+                        >
+                            Add Range
+                        </button>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-1">
+                        Supports: dash notation (5.231.32.113-5.231.32.122) or CIDR (192.168.1.0/24)
+                    </p>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex flex-wrap gap-4 pt-4 border-t border-gray-700">
+                    <button 
+                        onclick="checkAllIPs(true, true)" 
+                        class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-800"
+                    >
+                        🔍 Check All Abuse (Save + Discord)
+                    </button>
+                    <button 
+                        onclick="checkAllLiveStatus(true)" 
+                        class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800"
+                    >
+                        📡 Check All Live Status (Discord)
+                    </button>
+                    <button 
+                        onclick="triggerDailyCheck()" 
+                        class="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-gray-800"
+                    >
+                        🚀 Manual Daily Check
+                    </button>
+                    <button 
+                        onclick="testDiscord()" 
+                        class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-gray-800"
+                    >
+                        📢 Test Discord
+                    </button>
+                    <button 
+                        onclick="autoRefreshToggle()" 
+                        id="autoRefreshBtn"
+                        class="px-6 py-2 bg-orange-600 hover:bg-orange-700 text-white font-medium rounded-lg transition-colors focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-gray-800"
+                    >
+                        🔄 Auto Refresh: OFF
+                    </button>
+                    <button 
+                        onclick="clearAll()" 
+                        class="px-6 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-gray-800"
+                    >
+                        🗑️ Clear All
+                    </button>
+                </div>
+            </div>
+
+            <!-- Admin Panel (Hidden by default) -->
+            <div id="adminPanel" class="bg-gray-800 rounded-lg shadow-xl p-6 mb-6 border-2 border-red-600" style="display: none;">
+                <h3 class="text-lg font-semibold text-red-400 mb-4">🔐 Admin Panel</h3>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Temporarily Whitelist IP</label>
+                    <div class="flex gap-4">
+                        <input 
+                            type="text" 
+                            id="whitelistIP" 
+                            placeholder="Enter IP address to whitelist" 
+                            class="flex-1 px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                        >
+                        <button 
+                            onclick="whitelistIP()" 
+                            class="px-6 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors"
+                        >
+                            Add to Whitelist
+                        </button>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-1">⚠️ This is temporary and will be reset when the server restarts</p>
+                </div>
+            </div>
+
+            <!-- Quick Add Section -->
+            <div class="bg-gray-800 rounded-lg shadow-xl p-6 mb-6">
+                <h3 class="text-md font-medium text-white mb-3">Quick Add:</h3>
+                
+                <!-- Your IP Range -->
+                <div class="mb-4">
+                    <h4 class="text-sm font-medium text-blue-400 mb-2">🏠 Your IP Range:</h4>
+                    <button 
+                        onclick="addYourIPRange()" 
+                        class="px-4 py-2 bg-blue-700 hover:bg-blue-600 text-white text-sm rounded border border-blue-600 transition-colors font-mono"
+                    >
+                        Add 5.231.32.113-5.231.32.122 (10 IPs)
+                    </button>
+                </div>
+                
+                <!-- Demo IPs -->
+                <div>
+                    <h4 class="text-sm font-medium text-gray-400 mb-2">🧪 Demo IPs:</h4>
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="addDemoIP('8.8.8.8')" class="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-sm text-gray-300 rounded border border-gray-600 transition-colors font-mono">8.8.8.8</button>
+                        <button onclick="addDemoIP('1.1.1.1')" class="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-sm text-gray-300 rounded border border-gray-600 transition-colors font-mono">1.1.1.1</button>
+                        <button onclick="addDemoIP('10.0.0.1')" class="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-sm text-gray-300 rounded border border-gray-600 transition-colors font-mono">10.0.0.1</button>
+                        <button onclick="addDemoIP('123.123.123.123')" class="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-sm text-gray-300 rounded border border-gray-600 transition-colors font-mono">123.123.123.123</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Daily Monitoring Dashboard -->
+            <div id="dashboardSection" class="bg-gray-800 rounded-lg shadow-xl p-6 mb-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-lg font-semibold text-white">📊 Daily Monitoring Dashboard</h2>
+                    <div class="flex gap-3">
+                        <button 
+                            onclick="loadDashboardStats()" 
+                            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors"
+                        >
+                            🔄 Refresh Stats
+                        </button>
+                        <button 
+                            onclick="loadMonitoringList()" 
+                            class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg transition-colors"
+                        >
+                            📋 View Monitoring List
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Today's Statistics -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    <div class="bg-gray-700 rounded-lg p-4 text-center">
+                        <div class="text-2xl font-bold text-white" id="todayChecked">-</div>
+                        <div class="text-sm text-gray-300">Checked Today</div>
+                    </div>
+                    <div class="bg-gray-700 rounded-lg p-4 text-center">
+                        <div class="text-2xl font-bold text-green-400" id="todayClean">-</div>
+                        <div class="text-sm text-gray-300">Clean Today</div>
+                    </div>
+                    <div class="bg-gray-700 rounded-lg p-4 text-center">
+                        <div class="text-2xl font-bold text-yellow-400" id="todaySuspicious">-</div>
+                        <div class="text-sm text-gray-300">Suspicious Today</div>
+                    </div>
+                    <div class="bg-gray-700 rounded-lg p-4 text-center">
+                        <div class="text-2xl font-bold text-red-400" id="todayHighRisk">-</div>
+                        <div class="text-sm text-gray-300">High Risk Today</div>
+                    </div>
+                </div>
+
+                <!-- Recent Alerts -->
+                <div class="mb-6">
+                    <h3 class="text-md font-semibold text-white mb-3">🚨 Recent Alerts</h3>
+                    <div id="recentAlerts" class="bg-gray-700 rounded-lg p-4 max-h-40 overflow-y-auto">
+                        <div class="text-sm text-gray-400">Loading alerts...</div>
+                    </div>
+                </div>
+
+                <!-- Add to Monitoring -->
+                <div class="border-t border-gray-700 pt-6">
+                    <h3 class="text-md font-semibold text-white mb-3">🎯 Add IPs to Daily Monitoring</h3>
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <input 
+                            type="text" 
+                            id="monitoringIP" 
+                            placeholder="Enter IP to add to daily monitoring" 
+                            class="flex-1 px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        >
+                        <input 
+                            type="text" 
+                            id="monitoringNotes" 
+                            placeholder="Optional notes" 
+                            class="flex-1 px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        >
+                        <button 
+                            onclick="addToMonitoring()" 
+                            class="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors"
+                        >
+                            📅 Add to Monitoring
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Table -->
+            <div class="bg-gray-800 rounded-lg shadow-xl overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-700">
+                    <h2 class="text-lg font-semibold text-white">IP Check Results</h2>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left">
+                        <thead class="text-xs text-gray-300 uppercase bg-gray-700">
+                            <tr>
+                                <th scope="col" class="px-6 py-3">IP Address</th>
+                                <th scope="col" class="px-6 py-3">Live Status</th>
+                                <th scope="col" class="px-6 py-3">Abuse Status</th>
+                                <th scope="col" class="px-6 py-3">Confidence</th>
+                                <th scope="col" class="px-6 py-3">Reports</th>
+                                <th scope="col" class="px-6 py-3">Last Checked</th>
+                                <th scope="col" class="px-6 py-3">History</th>
+                                <th scope="col" class="px-6 py-3">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ipTableBody" class="bg-gray-800">
+                            <tr id="noDataRow">
+                                <td colspan="8" class="px-6 py-8 text-center text-gray-400">
+                                    No IP addresses added yet. Add some IPs above to get started.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Statistics -->
+            <div id="stats" class="mt-6 grid grid-cols-1 md:grid-cols-5 gap-4" style="display: none;">
+                <div class="bg-gray-800 rounded-lg p-4 text-center">
+                    <div class="text-2xl font-bold text-white" id="totalIPs">0</div>
+                    <div class="text-sm text-gray-400">Total IPs</div>
+                </div>
+                <div class="bg-gray-800 rounded-lg p-4 text-center">
+                    <div class="text-2xl font-bold text-blue-400" id="onlineIPs">0</div>
+                    <div class="text-sm text-gray-400">Online IPs</div>
+                </div>
+                <div class="bg-gray-800 rounded-lg p-4 text-center">
+                    <div class="text-2xl font-bold text-green-400" id="cleanIPs">0</div>
+                    <div class="text-sm text-gray-400">Clean IPs</div>
+                </div>
+                <div class="bg-gray-800 rounded-lg p-4 text-center">
+                    <div class="text-2xl font-bold text-yellow-400" id="reportedIPs">0</div>
+                    <div class="text-sm text-gray-400">Reported IPs</div>
+                </div>
+                <div class="bg-gray-800 rounded-lg p-4 text-center">
+                    <div class="text-2xl font-bold text-red-400" id="highRiskIPs">0</div>
+                    <div class="text-sm text-gray-400">High Risk IPs</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ipData = [];
+        let autoRefreshInterval = null;
+        let isAutoRefresh = false;
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                addIP();
+            }
+        }
+
+        function handleRangeKeyPress(event) {
+            if (event.key === 'Enter') {
+                addIPRange();
+            }
+        }
+
+        function addIP() {
+            const input = document.getElementById('ipInput');
+            const ip = input.value.trim();
+            
+            if (!ip) {
+                showNotification('Please enter an IP address', 'error');
+                return;
+            }
+
+            if (ipData.find(item => item.ip === ip)) {
+                showNotification('IP address already exists', 'warning');
+                return;
+            }
+
+            if (!isValidIP(ip)) {
+                showNotification('Please enter a valid IP address', 'error');
+                return;
+            }
+
+            const ipItem = {
+                ip: ip,
+                status: 'pending',
+                abuseConfidence: null,
+                totalReports: null,
+                lastChecked: null,
+                liveStatus: 'unknown',
+                connectivity: null,
+                services: [],
+                liveLastChecked: null
+            };
+
+            ipData.push(ipItem);
+            input.value = '';
+            updateTable();
+            updateStats();
+            showNotification('IP added successfully', 'success');
+        }
+
+        async function addIPRange() {
+            const input = document.getElementById('rangeInput');
+            const range = input.value.trim();
+            
+            if (!range) {
+                showNotification('Please enter an IP range', 'error');
+                return;
+            }
+
+            showNotification('Expanding IP range...', 'info');
+
+            try {
+                const response = await fetch('/api/expand-range', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ range: range })
+                });
+
+                const result = await response.json();
+
+                if (!response.ok || result.error) {
+                    showNotification(result.error || 'Failed to expand range', 'error');
+                    return;
+                }
+
+                let addedCount = 0;
+                let duplicateCount = 0;
+
+                result.ips.forEach(ip => {
+                    if (!ipData.find(item => item.ip === ip)) {
+                        const ipItem = {
+                            ip: ip,
+                            status: 'pending',
+                            abuseConfidence: null,
+                            totalReports: null,
+                            lastChecked: null,
+                            liveStatus: 'unknown',
+                            connectivity: null,
+                            services: [],
+                            liveLastChecked: null
+                        };
+                        ipData.push(ipItem);
+                        addedCount++;
+                    } else {
+                        duplicateCount++;
+                    }
+                });
+
+                input.value = '';
+                updateTable();
+                updateStats();
+                
+                let message = `Added ${addedCount} IPs from range`;
+                if (duplicateCount > 0) {
+                    message += ` (${duplicateCount} duplicates skipped)`;
+                }
+                showNotification(message, 'success');
+                
+            } catch (error) {
+                console.error('Error expanding range:', error);
+                showNotification('Network error while expanding range', 'error');
+            }
+        }
+
+        function addYourIPRange() {
+            document.getElementById('rangeInput').value = '5.231.32.113-5.231.32.122';
+            addIPRange();
+        }
+
+        function addDemoIP(ip) {
+            document.getElementById('ipInput').value = ip;
+            addIP();
+        }
+
+        async function checkAllIPs(saveToDB = false, sendDiscord = false) {
+            if (ipData.length === 0) {
+                showNotification('No IPs to check', 'warning');
+                return;
+            }
+
+            let message = 'Checking all IPs';
+            if (saveToDB) message += ', saving to database';
+            if (sendDiscord) message += ', sending Discord notifications';
+            message += '...';
+            
+            showNotification(message, 'info');
+            
+            for (const ipItem of ipData) {
+                await checkSingleIP(ipItem.ip, saveToDB, sendDiscord);
+                // Small delay to prevent overwhelming the API
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+            
+            showNotification('All IPs checked', 'success');
+            
+            if (saveToDB) {
+                loadDashboardStats(); // Refresh dashboard after saving
+            }
+        }
+
+        async function checkIP(ip, saveToDB = false, sendDiscord = false) {
+            try {
+                const response = await fetch('/api/check-ip', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        ip: ip, 
+                        save_to_db: saveToDB,
+                        send_discord: sendDiscord
+                    })
+                });
+
+                const result = await response.json();
+                return result;
+            } catch (error) {
+                console.error('Error checking IP:', error);
+                return { error: 'Network error', status: 'error' };
+            }
+        }
+
+        async function checkSingleIP(ip, saveToDB = false, sendDiscord = false) {
+            // Update status to loading
+            const ipItem = ipData.find(item => item.ip === ip);
+            if (ipItem) {
+                ipItem.status = 'loading';
+                updateTable();
+            }
+
+            const result = await checkIP(ip, saveToDB, sendDiscord);
+            
+            if (ipItem) {
+                if (result.error) {
+                    ipItem.status = 'error';
+                    ipItem.error = result.error;
+                } else {
+                    ipItem.status = result.status;
+                    ipItem.abuseConfidence = result.abuseConfidence;
+                    ipItem.totalReports = result.totalReports;
+                    ipItem.lastChecked = result.lastChecked;
+                    ipItem.countryCode = result.countryCode;
+                    ipItem.isp = result.isp;
+                    ipItem.mock = result.mock;
+                }
+                updateTable();
+                updateStats();
+            }
+        }
+
+        async function checkAllLiveStatus(sendDiscord = false) {
+            if (ipData.length === 0) {
+                showNotification('No IPs to check', 'warning');
+                return;
+            }
+
+            let message = 'Checking live status for all IPs';
+            if (sendDiscord) message += ' with Discord notifications';
+            message += '...';
+            
+            showNotification(message, 'info');
+            
+            // Mark all as checking
+            ipData.forEach(item => item.liveStatus = 'checking');
+            updateTable();
+
+            try {
+                const response = await fetch('/api/live-status-batch', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        ips: ipData.map(item => item.ip),
+                        send_discord: sendDiscord
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (result.results) {
+                    result.results.forEach(statusResult => {
+                        const ipItem = ipData.find(item => item.ip === statusResult.ip);
+                        if (ipItem) {
+                            if (statusResult.error) {
+                                ipItem.liveStatus = 'error';
+                                ipItem.connectivity = 'error';
+                                ipItem.services = [];
+                            } else {
+                                ipItem.liveStatus = statusResult.connectivity;
+                                ipItem.connectivity = statusResult.connectivity;
+                                ipItem.services = statusResult.services || [];
+                                ipItem.liveLastChecked = statusResult.last_checked;
+                            }
+                        }
+                    });
+                }
+                
+                updateTable();
+                updateStats();
+                showNotification('Live status check completed', 'success');
+                
+            } catch (error) {
+                console.error('Error checking live status batch:', error);
+                showNotification('Error checking live status', 'error');
+                // Reset checking status on error
+                ipData.forEach(item => {
+                    if (item.liveStatus === 'checking') {
+                        item.liveStatus = 'error';
+                    }
+                });
+                updateTable();
+            }
+        }
+
+        async function checkSingleLiveStatus(ip, sendDiscord = false) {
+            const ipItem = ipData.find(item => item.ip === ip);
+            if (ipItem) {
+                ipItem.liveStatus = 'checking';
+                updateTable();
+            }
+
+            try {
+                const response = await fetch('/api/live-status', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        ip: ip,
+                        send_discord: sendDiscord 
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (ipItem) {
+                    if (result.error) {
+                        ipItem.liveStatus = 'error';
+                        ipItem.connectivity = 'error';
+                        ipItem.services = [];
+                    } else {
+                        ipItem.liveStatus = result.connectivity;
+                        ipItem.connectivity = result.connectivity;
+                        ipItem.services = result.services || [];
+                        ipItem.liveLastChecked = result.last_checked;
+                    }
+                    updateTable();
+                }
+            } catch (error) {
+                console.error('Error checking live status:', error);
+                if (ipItem) {
+                    ipItem.liveStatus = 'error';
+                    updateTable();
+                }
+            }
+        }
+
+        async function addIPToMonitoring(ip) {
+            if (!ip || !isValidIP(ip)) {
+                showNotification('Invalid IP address', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/add-ip-to-monitoring', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        ip: ip, 
+                        notes: `Added from main interface on ${new Date().toLocaleDateString()}`
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showNotification(result.message, 'success');
+                    loadDashboardStats(); // Refresh stats
+                } else {
+                    showNotification(result.error || 'Failed to add IP to monitoring', 'error');
+                }
+            } catch (error) {
+                console.error('Error adding to monitoring:', error);
+                showNotification('Network error while adding to monitoring', 'error');
+            }
+        }
+
+        async function testDiscord() {
+            try {
+                const response = await fetch('/api/discord/test', { method: 'POST' });
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showNotification('Discord test message sent! Check your Discord channel.', 'success');
+                } else {
+                    showNotification(result.error || 'Discord test failed', 'error');
+                }
+            } catch (error) {
+                console.error('Error testing Discord:', error);
+                showNotification('Network error testing Discord', 'error');
+            }
+        }
+
+        async function loadDashboardStats() {
+            try {
+                const response = await fetch('/api/dashboard-stats');
+                const result = await response.json();
+                
+                if (result.error) {
+                    showNotification('Error loading dashboard stats', 'error');
+                    return;
+                }
+                
+                // Update today's stats
+                document.getElementById('todayChecked').textContent = result.today_stats.total_checked;
+                document.getElementById('todayClean').textContent = result.today_stats.clean;
+                document.getElementById('todaySuspicious').textContent = result.today_stats.suspicious;
+                document.getElementById('todayHighRisk').textContent = result.today_stats.high_risk;
+                
+                // Update recent alerts
+                const alertsDiv = document.getElementById('recentAlerts');
+                if (result.recent_alerts.length === 0) {
+                    alertsDiv.innerHTML = '<div class="text-sm text-gray-400">No recent alerts</div>';
+                } else {
+                    alertsDiv.innerHTML = result.recent_alerts.map(alert => 
+                        `<div class="flex justify-between items-center py-2 border-b border-gray-600 last:border-b-0">
+                            <div>
+                                <span class="font-mono text-blue-400">${alert.ip}</span>
+                                <span class="ml-2 px-2 py-1 text-xs rounded ${
+                                    alert.type === 'HIGH_RISK' ? 'bg-red-800 text-red-200' : 'bg-yellow-800 text-yellow-200'
+                                }">${alert.type}</span>
+                            </div>
+                            <div class="text-xs text-gray-400">${new Date(alert.timestamp).toLocaleDateString()}</div>
+                        </div>`
+                    ).join('');
+                }
+                
+            } catch (error) {
+                console.error('Error loading dashboard stats:', error);
+                showNotification('Network error loading dashboard', 'error');
+            }
+        }
+
+        async function loadMonitoringList() {
+            try {
+                const response = await fetch('/api/monitoring-list');
+                const result = await response.json();
+                
+                if (result.error) {
+                    showNotification('Error loading monitoring list', 'error');
+                    return;
+                }
+                
+                const listHTML = result.monitoring_list.map(item => 
+                    `<div class="flex justify-between items-center p-3 bg-gray-700 rounded mb-2">
+                        <div>
+                            <span class="font-mono text-blue-400">${item.ip}</span>
+                            ${item.notes ? `<div class="text-xs text-gray-400">${item.notes}</div>` : ''}
+                        </div>
+                        <div class="text-xs text-gray-400">
+                            ${item.is_active ? '🟢 Active' : '🔴 Inactive'} | Added: ${new Date(item.added_date).toLocaleDateString()}
+                        </div>
+                    </div>`
+                ).join('');
+                
+                // Create modal or update a dedicated section
+                showNotification(`Monitoring ${result.monitoring_list.length} IPs`, 'info');
+                console.log('Monitoring List:', result.monitoring_list);
+                
+            } catch (error) {
+                console.error('Error loading monitoring list:', error);
+                showNotification('Network error loading monitoring list', 'error');
+            }
+        }
+
+        async function addToMonitoring() {
+            const ipInput = document.getElementById('monitoringIP');
+            const notesInput = document.getElementById('monitoringNotes');
+            
+            const ip = ipInput.value.trim();
+            const notes = notesInput.value.trim();
+            
+            if (!ip) {
+                showNotification('Please enter an IP address', 'error');
+                return;
+            }
+
+            if (!isValidIP(ip)) {
+                showNotification('Please enter a valid IP address', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/add-ip-to-monitoring', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ ip: ip, notes: notes })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showNotification(result.message, 'success');
+                    ipInput.value = '';
+                    notesInput.value = '';
+                    loadDashboardStats(); // Refresh stats
+                } else {
+                    showNotification(result.error || 'Failed to add IP to monitoring', 'error');
+                }
+            } catch (error) {
+                console.error('Error adding to monitoring:', error);
+                showNotification('Network error while adding to monitoring', 'error');
+            }
+        }
+
+        async function viewIPHistory(ip) {
+            try {
+                const response = await fetch(`/api/abuse-history/${ip}`);
+                const result = await response.json();
+                
+                if (result.error) {
+                    showNotification('Error loading IP history', 'error');
+                    return;
+                }
+                
+                if (result.history.length === 0) {
+                    showNotification('No historical data available for this IP', 'info');
+                    return;
+                }
+                
+                // Create a simple history display
+                const historyHTML = result.history.map(entry => 
+                    `<div class="flex justify-between items-center py-2 border-b border-gray-600">
+                        <div class="text-sm">
+                            <span class="text-gray-300">${entry.date}</span>
+                        </div>
+                        <div class="text-sm">
+                            <span class="font-mono ${entry.abuse_confidence === 0 ? 'text-green-400' : entry.abuse_confidence < 50 ? 'text-yellow-400' : 'text-red-400'}">${entry.abuse_confidence}%</span>
+                            <span class="ml-2 text-gray-400">(${entry.total_reports} reports)</span>
+                        </div>
+                    </div>`
+                ).join('');
+                
+                // For now, just show in console - you could create a modal here
+                console.log(`History for ${ip}:`, result.history);
+                showNotification(`Loaded ${result.history.length} historical records for ${ip}`, 'info');
+                
+            } catch (error) {
+                console.error('Error loading IP history:', error);
+                showNotification('Network error loading history', 'error');
+            }
+        }
+
+        async function triggerDailyCheck() {
+            try {
+                const response = await fetch('/api/trigger-daily-check', { method: 'POST' });
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showNotification(result.message, 'success');
+                    // Refresh dashboard after a delay
+                    setTimeout(() => {
+                        loadDashboardStats();
+                    }, 5000);
+                } else {
+                    showNotification(result.error || 'Failed to trigger daily check', 'error');
+                }
+            } catch (error) {
+                console.error('Error triggering daily check:', error);
+                showNotification('Network error triggering daily check', 'error');
+            }
+        }
+
+        function autoRefreshToggle() {
+            const btn = document.getElementById('autoRefreshBtn');
+            
+            if (isAutoRefresh) {
+                clearInterval(autoRefreshInterval);
+                isAutoRefresh = false;
+                btn.textContent = '🔄 Auto Refresh: OFF';
+                btn.classList.remove('bg-green-600', 'hover:bg-green-700');
+                btn.classList.add('bg-orange-600', 'hover:bg-orange-700');
+                showNotification('Auto refresh disabled', 'info');
+            } else {
+                isAutoRefresh = true;
+                btn.textContent = '🔄 Auto Refresh: ON';
+                btn.classList.remove('bg-orange-600', 'hover:bg-orange-700');
+                btn.classList.add('bg-green-600', 'hover:bg-green-700');
+                
+                // Auto refresh every 30 seconds
+                autoRefreshInterval = setInterval(() => {
+                    if (ipData.length > 0) {
+                        checkAllLiveStatus();
+                    }
+                }, 30000);
+                
+                showNotification('Auto refresh enabled (30s intervals)', 'success');
+                
+                // Do initial check
+                if (ipData.length > 0) {
+                    checkAllLiveStatus();
+                }
+            }
+        }
+
+        function isValidIP(ip) {
+            const ipRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+            return ipRegex.test(ip);
+        }
+
+        function removeIP(ip) {
+            ipData = ipData.filter(item => item.ip !== ip);
+            updateTable();
+            updateStats();
+            showNotification('IP removed', 'info');
+        }
+
+        function clearAll() {
+            ipData = [];
+            // Stop auto refresh if running
+            if (isAutoRefresh) {
+                autoRefreshToggle();
+            }
+            updateTable();
+            updateStats();
+            showNotification('All IPs cleared', 'info');
+        }
+
+        function updateTable() {
+            const tbody = document.getElementById('ipTableBody');
+            const noDataRow = document.getElementById('noDataRow');
+            
+            if (ipData.length === 0) {
+                noDataRow.style.display = '';
+                return;
+            } else {
+                noDataRow.style.display = 'none';
+            }
+
+            tbody.innerHTML = ipData.map(item => {
+                // Abuse Status Badge
+                let statusBadge = '';
+                let statusText = '';
+                
+                switch (item.status) {
+                    case 'clean':
+                        statusBadge = 'status-clean';
+                        statusText = '✅ Clean';
+                        break;
+                    case 'reports':
+                        statusBadge = 'status-reports';
+                        statusText = '⚠️ Reports';
+                        break;
+                    case 'high-risk':
+                        statusBadge = 'status-high-risk';
+                        statusText = '🚨 High Risk';
+                        break;
+                    case 'error':
+                        statusBadge = 'status-error';
+                        statusText = '❌ Error';
+                        break;
+                    case 'loading':
+                        statusBadge = 'status-loading';
+                        statusText = '🔄 Checking...';
+                        break;
+                    default:
+                        statusBadge = 'status-error';
+                        statusText = '⏸️ Pending';
+                }
+
+                // Live Status Badge
+                let liveBadge = '';
+                let liveText = '';
+                let servicesText = '';
+                
+                switch (item.liveStatus) {
+                    case 'online':
+                        liveBadge = 'live-online';
+                        liveText = '🟢 Online';
+                        if (item.services && item.services.length > 0) {
+                            servicesText = `<div class="text-xs text-green-400 mt-1">${item.services.join(', ')}</div>`;
+                        }
+                        break;
+                    case 'offline':
+                        liveBadge = 'live-offline';
+                        liveText = '🔴 Offline';
+                        break;
+                    case 'timeout':
+                        liveBadge = 'live-timeout';
+                        liveText = '🟡 Timeout';
+                        break;
+                    case 'error':
+                        liveBadge = 'live-unknown';
+                        liveText = '❌ Error';
+                        break;
+                    case 'checking':
+                        liveBadge = 'live-checking';
+                        liveText = '🔄 Checking...';
+                        break;
+                    default:
+                        liveBadge = 'live-unknown';
+                        liveText = '⚪ Unknown';
+                }
+
+                return `
+                    <tr class="border-b border-gray-700 hover-gray-750">
+                        <td class="px-6 py-4 font-mono text-blue-400">${item.ip}</td>
+                        <td class="px-6 py-4">
+                            <span class="px-2 py-1 rounded text-xs font-medium ${liveBadge}">
+                                ${liveText}
+                            </span>
+                            ${servicesText}
+                            ${item.liveLastChecked ? `<div class="text-xs text-gray-500 mt-1">${item.liveLastChecked}</div>` : ''}
+                        </td>
+                        <td class="px-6 py-4">
+                            <span class="px-2 py-1 rounded text-xs font-medium ${statusBadge}">
+                                ${statusText}
+                            </span>
+                            ${item.mock ? '<div class="mt-1"><span class="px-2 py-1 bg-purple-900 text-purple-300 text-xs rounded border border-purple-800">DEMO</span></div>' : ''}
+                        </td>
+                        <td class="px-6 py-4">
+                            ${item.abuseConfidence !== null ? 
+                                `<span class="font-mono">${item.abuseConfidence}%</span>` : 
+                                '<span class="text-gray-500">-</span>'
+                            }
+                        </td>
+                        <td class="px-6 py-4">
+                            ${item.totalReports !== null ? 
+                                `<span class="font-mono">${item.totalReports}</span>` : 
+                                '<span class="text-gray-500">-</span>'
+                            }
+                        </td>
+                        <td class="px-6 py-4 text-gray-400 text-sm">
+                            ${item.lastChecked || '-'}
+                        </td>
+                        <td class="px-6 py-4">
+                            <button 
+                                onclick="viewIPHistory('${item.ip}')" 
+                                class="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs rounded transition-colors"
+                                title="View history"
+                            >
+                                📊 History
+                            </button>
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="flex flex-col gap-1">
+                                <div class="flex gap-2">
+                                    <button 
+                                        onclick="checkSingleIP('${item.ip}', true, true)" 
+                                        class="px-2 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded transition-colors"
+                                        ${item.status === 'loading' ? 'disabled' : ''}
+                                        title="Check abuse status, save to DB & notify Discord"
+                                    >
+                                        ${item.status === 'loading' ? '🔄' : '🛡️💾📢'}
+                                    </button>
+                                    <button 
+                                        onclick="checkSingleLiveStatus('${item.ip}', true)" 
+                                        class="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors"
+                                        ${item.liveStatus === 'checking' ? 'disabled' : ''}
+                                        title="Check live status & notify Discord"
+                                    >
+                                        ${item.liveStatus === 'checking' ? '🔄' : '📡📢'}
+                                    </button>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button 
+                                        onclick="addIPToMonitoring('${item.ip}')" 
+                                        class="px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white text-xs rounded transition-colors"
+                                        title="Add to daily monitoring"
+                                    >
+                                        📅
+                                    </button>
+                                    <button 
+                                        onclick="removeIP('${item.ip}')" 
+                                        class="px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors"
+                                        title="Remove IP"
+                                    >
+                                        🗑️
+                                    </button>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            // Add the no data row back
+            tbody.innerHTML += `
+                <tr id="noDataRow" style="display: none;">
+                    <td colspan="8" class="px-6 py-8 text-center text-gray-400">
+                        No IP addresses added yet. Add some IPs above to get started.
+                    </td>
+                </tr>
+            `;
+        }
+
+        function updateStats() {
+            const totalIPs = ipData.length;
+            const cleanIPs = ipData.filter(item => item.status === 'clean').length;
+            const reportedIPs = ipData.filter(item => item.status === 'reports').length;
+            const highRiskIPs = ipData.filter(item => item.status === 'high-risk').length;
+            const onlineIPs = ipData.filter(item => item.liveStatus === 'online').length;
+
+            document.getElementById('totalIPs').textContent = totalIPs;
+            document.getElementById('cleanIPs').textContent = cleanIPs;
+            document.getElementById('reportedIPs').textContent = reportedIPs;
+            document.getElementById('highRiskIPs').textContent = highRiskIPs;
+            document.getElementById('onlineIPs').textContent = onlineIPs;
+
+            const statsDiv = document.getElementById('stats');
+            if (totalIPs > 0) {
+                statsDiv.style.display = 'grid';
+            } else {
+                statsDiv.style.display = 'none';
+            }
+        }
+
+        // Check current IP status
+        async function checkMyIP() {
+            try {
+                const response = await fetch('/api/check-my-ip');
+                const result = await response.json();
+                
+                const statusElement = document.getElementById('ipStatus');
+                if (result.is_allowed) {
+                    statusElement.innerHTML = `🟢 ${result.your_ip} (Authorized)`;
+                    statusElement.className = 'text-xs px-2 py-1 rounded bg-green-700 text-green-300 mr-2';
+                    
+                    // Show admin panel for authorized IPs
+                    document.getElementById('adminPanel').style.display = 'block';
+                } else {
+                    statusElement.innerHTML = `🔴 ${result.your_ip} (Blocked)`;
+                    statusElement.className = 'text-xs px-2 py-1 rounded bg-red-700 text-red-300 mr-2';
+                }
+                
+                console.log('Current IP Status:', result);
+            } catch (error) {
+                console.error('Error checking IP:', error);
+                document.getElementById('ipStatus').innerHTML = '❓ Unknown';
+            }
+        }
+
+        // Whitelist an IP (admin function)
+        async function whitelistIP() {
+            const input = document.getElementById('whitelistIP');
+            const ip = input.value.trim();
+            
+            if (!ip) {
+                showNotification('Please enter an IP address', 'error');
+                return;
+            }
+
+            if (!isValidIP(ip)) {
+                showNotification('Please enter a valid IP address', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/admin/whitelist', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ ip: ip })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showNotification(result.message, 'success');
+                    input.value = '';
+                } else {
+                    showNotification(result.error || 'Failed to whitelist IP', 'error');
+                }
+            } catch (error) {
+                console.error('Error whitelisting IP:', error);
+                showNotification('Network error while whitelisting IP', 'error');
+            }
+        }
+
+        function showNotification(message, type = 'info') {
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 px-4 py-3 rounded-lg shadow-lg z-50 transition-all duration-300 transform translate-x-full`;
+            
+            const colors = {
+                success: 'bg-green-600 text-white',
+                error: 'bg-red-600 text-white',
+                warning: 'bg-yellow-600 text-white',
+                info: 'bg-blue-600 text-white'
+            };
+            
+            notification.className += ` ${colors[type] || colors.info}`;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            // Animate in
+            setTimeout(() => {
+                notification.classList.remove('translate-x-full');
+            }, 100);
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                notification.classList.add('translate-x-full');
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }, 3000);
+        }
+
+        // Initialize the page
+        document.addEventListener('DOMContentLoaded', function() {
+            updateTable();
+            updateStats();
+            checkMyIP();
+            loadDashboardStats();
+        });
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', function() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+            }
+        });
+    </script>
+</body>
+</html>

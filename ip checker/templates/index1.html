@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IP Connection Monitor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            text-align: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .nav {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+        }
+
+        .nav a {
+            color: white;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        .nav a:hover {
+            background-color: rgba(255,255,255,0.2);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border: 1px solid #e0e0e0;
+        }
+
+        .card h3 {
+            color: #5a5a5a;
+            margin-bottom: 1rem;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 0.5rem;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+        }
+
+        .status-active {
+            background-color: #4CAF50;
+        }
+
+        .status-inactive {
+            background-color: #f44336;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 0.7rem 1.5rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin: 0.5rem 0.5rem 0.5rem 0;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #4CAF50 0%, #388e3c 100%);
+        }
+
+        .config-item {
+            margin-bottom: 1rem;
+            padding: 0.5rem;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            border-left: 4px solid #667eea;
+        }
+
+        .config-label {
+            font-weight: bold;
+            color: #555;
+        }
+
+        .config-value {
+            color: #777;
+            font-family: monospace;
+        }
+
+        .alert {
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 5px;
+            border-left: 4px solid;
+        }
+
+        .alert-success {
+            background-color: #d4edda;
+            border-color: #28a745;
+            color: #155724;
+        }
+
+        .alert-error {
+            background-color: #f8d7da;
+            border-color: #dc3545;
+            color: #721c24;
+        }
+
+        .live-connections {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            padding: 1rem;
+            background-color: #f9f9f9;
+        }
+
+        .connection-item {
+            padding: 0.5rem;
+            margin-bottom: 0.5rem;
+            background-color: white;
+            border-radius: 3px;
+            border-left: 3px solid #667eea;
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        .timestamp {
+            color: #888;
+            font-size: 11px;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .nav {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🛡️ IP Connection Monitor</h1>
+        <div class="nav">
+            <a href="/">Dashboard</a>
+            <a href="/connections">Live Connections</a>
+            <a href="/logout">Logout</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="dashboard-grid">
+            <!-- Monitoring Status -->
+            <div class="card">
+                <h3>📊 Monitoring Status</h3>
+                <div style="margin-bottom: 1rem;">
+                    <span class="status-indicator status-active"></span>
+                    <strong>Active Monitoring</strong>
+                </div>
+                <div class="config-item">
+                    <div class="config-label">Monitored Network:</div>
+                    <div class="config-value">{{ config.MONITORED_NETWORK }}</div>
+                </div>
+                <div class="config-item">
+                    <div class="config-label">IP Range:</div>
+                    <div class="config-value">{{ config.MONITORED_RANGE[0] }} - {{ config.MONITORED_RANGE[1] }}</div>
+                </div>
+                <div class="config-item">
+                    <div class="config-label">Monitored Ports:</div>
+                    <div class="config-value">{{ config.MONITORED_PORTS|length }} ports</div>
+                </div>
+            </div>
+
+            <!-- Email Configuration -->
+            <div class="card">
+                <h3>📧 Email Notifications</h3>
+                <div style="margin-bottom: 1rem;">
+                    <span class="status-indicator {% if config.EMAIL_CONFIG.enabled %}status-active{% else %}status-inactive{% endif %}"></span>
+                    <strong>Email Status: {% if config.EMAIL_CONFIG.enabled %}Enabled{% else %}Disabled{% endif %}</strong>
+                </div>
+                <div class="config-item">
+                    <div class="config-label">SMTP Server:</div>
+                    <div class="config-value">{{ config.EMAIL_CONFIG.smtp_server }}:{{ config.EMAIL_CONFIG.smtp_port }}</div>
+                </div>
+                <div class="config-item">
+                    <div class="config-label">Recipients:</div>
+                    <div class="config-value">{{ config.RECIPIENT_EMAILS|length }} recipients</div>
+                </div>
+                <button class="btn" onclick="toggleEmail()">
+                    {% if config.EMAIL_CONFIG.enabled %}Disable Email{% else %}Enable Email{% endif %}
+                </button>
+            </div>
+
+            <!-- Discord Integration -->
+            <div class="card">
+                <h3>💬 Discord Integration</h3>
+                <div style="margin-bottom: 1rem;">
+                    <span class="status-indicator status-active"></span>
+                    <strong>Discord Webhook Active</strong>
+                </div>
+                <p>Automatic alerts are sent to Discord when new connections are detected.</p>
+                <button class="btn" onclick="testDiscord()">Test Discord Alert</button>
+                <button class="btn" onclick="testDiscordFile()">Test Discord with Report</button>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="card">
+                <h3>⚡ Quick Actions</h3>
+                <button class="btn btn-success" onclick="generateReport()">📄 Generate Report</button>
+                <button class="btn" onclick="refreshConnections()">🔄 Refresh Connections</button>
+                <button class="btn" onclick="viewLogs()">📋 View Logs</button>
+            </div>
+
+            <!-- Live Connection Feed -->
+            <div class="card" style="grid-column: span 2;">
+                <h3>🔴 Live Connection Feed</h3>
+                <div id="live-connections" class="live-connections">
+                    <div class="connection-item">
+                        <div class="timestamp">Waiting for connections...</div>
+                    </div>
+                </div>
+                <button class="btn" onclick="clearFeed()">Clear Feed</button>
+            </div>
+        </div>
+
+        <div id="alerts"></div>
+    </div>
+
+    <script>
+        const socket = io();
+        
+        socket.on('new_connection', function(data) {
+            const feed = document.getElementById('live-connections');
+            const connectionDiv = document.createElement('div');
+            connectionDiv.className = 'connection-item';
+            connectionDiv.innerHTML = `
+                <div><strong>🚨 New Connection</strong></div>
+                <div>From: ${data.remote_ip}:${data.remote_port} → ${data.local_ip}:${data.local_port}</div>
+                <div class="timestamp">${data.timestamp}</div>
+            `;
+            feed.insertBefore(connectionDiv, feed.firstChild);
+            
+            // Keep only last 10 connections
+            while (feed.children.length > 10) {
+                feed.removeChild(feed.lastChild);
+            }
+        });
+
+        function showAlert(message, type = 'success') {
+            const alertsDiv = document.getElementById('alerts');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            alertsDiv.appendChild(alert);
+            
+            setTimeout(() => {
+                alertsDiv.removeChild(alert);
+            }, 5000);
+        }
+
+        function testDiscord() {
+            fetch('/api/test_discord', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showAlert('Discord test message sent successfully!', 'success');
+                    } else {
+                        showAlert('Failed to send Discord message', 'error');
+                    }
+                })
+                .catch(error => {
+                    showAlert('Error testing Discord: ' + error, 'error');
+                });
+        }
+
+        function testDiscordFile() {
+            fetch('/api/test_discord_file', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showAlert('Discord test file sent successfully!', 'success');
+                    } else {
+                        showAlert('Failed to send Discord file', 'error');
+                    }
+                })
+                .catch(error => {
+                    showAlert('Error testing Discord file: ' + error, 'error');
+                });
+        }
+
+        function toggleEmail() {
+            fetch('/api/toggle_email', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    showAlert(`Email notifications ${data.enabled ? 'enabled' : 'disabled'}!`, 'success');
+                    setTimeout(() => location.reload(), 1000);
+                })
+                .catch(error => {
+                    showAlert('Error toggling email: ' + error, 'error');
+                });
+        }
+
+        function generateReport() {
+            window.open('/api/generate_report', '_blank');
+            showAlert('Report generated and downloaded!', 'success');
+        }
+
+        function refreshConnections() {
+            fetch('/api/get_connections')
+                .then(response => response.json())
+                .then(data => {
+                    showAlert(`Found ${data.length} active connections`, 'success');
+                })
+                .catch(error => {
+                    showAlert('Error refreshing connections: ' + error, 'error');
+                });
+        }
+
+        function viewLogs() {
+            fetch('/api/get_logs')
+                .then(response => response.json())
+                .then(data => {
+                    showAlert(`Total logged entries: ${data.length}`, 'success');
+                })
+                .catch(error => {
+                    showAlert('Error fetching logs: ' + error, 'error');
+                });
+        }
+
+        function clearFeed() {
+            const feed = document.getElementById('live-connections');
+            feed.innerHTML = '<div class="connection-item"><div class="timestamp">Feed cleared...</div></div>';
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+{
+    "DISCORD_WEBHOOK": "https://discord.com/api/webhooks/1396910430026203176/woXjtZb1eK3BGzMoBX6JnR2gVe6GRZRpXXGUaCfY7IiXNsed71Px5Xi4woh01Msn27dT",
+    "MONITORED_NETWORK": "5.231.32.0/24",
+    "GATEWAY_IP": "5.231.32.1",
+    "MONITORED_RANGE": [
+        "MONITORED_RANGE": [
+    "MONITORED_RANGE": [
+    "5.231.32.113",
+    "5.231.32.114",
+    "5.231.32.116",
+    "5.231.32.117",
+    "5.231.32.118",
+    "5.231.32.119",
+    "5.231.32.120",
+    "5.231.32.121",
+    "5.231.32.122",
+    "5.231.32.123",
+    "5.231.32.124",
+    "5.231.32.125",
+    "5.231.32.126",
+    "5.231.32.127",
+    "5.231.32.226"
+]
+
+
+    ],
+    "MONITORED_PORTS": [
+        0,
+        1,
+        2,
+        3,
+        

@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Connections - IP Connection Monitor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            text-align: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .nav {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+        }
+
+        .nav a {
+            color: white;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        .nav a:hover, .nav a.active {
+            background-color: rgba(255,255,255,0.2);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        .controls {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 0.7rem 1.5rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #4CAF50 0%, #388e3c 100%);
+        }
+
+        .btn-small {
+            padding: 0.4rem 0.8rem;
+            font-size: 12px;
+        }
+
+        .stats {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .connections-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .connections-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .search-box {
+            padding: 0.5rem;
+            border: none;
+            border-radius: 5px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            placeholder-color: rgba(255,255,255,0.7);
+        }
+
+        .search-box::placeholder {
+            color: rgba(255,255,255,0.7);
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .connections-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .connections-table th,
+        .connections-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .connections-table th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: #555;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .connections-table tr:hover {
+            background-color: #f5f7ff;
+        }
+
+        .ip-address {
+            font-family: monospace;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .port {
+            font-family: monospace;
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .status-badge {
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .status-established {
+            background-color: #e8f5e8;
+            color: #2e7d32;
+        }
+
+        .status-listening {
+            background-color: #fff3e0;
+            color: #f57c00;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem;
+            color: #666;
+        }
+
+        .empty-state-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+
+        .alert {
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 5px;
+            border-left: 4px solid;
+        }
+
+        .alert-success {
+            background-color: #d4edda;
+            border-color: #28a745;
+            color: #155724;
+        }
+
+        .alert-error {
+            background-color: #f8d7da;
+            border-color: #dc3545;
+            color: #721c24;
+        }
+
+        .alert-warning {
+            background-color: #fff3cd;
+            border-color: #ffc107;
+            color: #856404;
+        }
+
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .stats {
+                justify-content: center;
+                width: 100%;
+            }
+
+            .connections-table {
+                font-size: 0.8rem;
+            }
+
+            .connections-table th,
+            .connections-table td {
+                padding: 0.5rem;
+            }
+
+            .nav {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔌 Live Network Connections</h1>
+        <div class="nav">
+            <a href="/">Dashboard</a>
+            <a href="/connections" class="active">Live Connections</a>
+            <a href="/logout">Logout</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="controls">
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-number" id="total-connections">{{ connections|length }}</div>
+                    <div class="stat-label">Total Connections</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-number" id="monitored-connections">0</div>
+                    <div class="stat-label">Monitored</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-number" id="last-update">-</div>
+                    <div class="stat-label">Seconds Ago</div>
+                </div>
+            </div>
+            <div>
+                <button class="btn" onclick="refreshConnections()">🔄 Refresh</button>
+                <button class="btn btn-success" onclick="exportData()">📊 Export Data</button>
+                <button class="btn btn-danger" onclick="clearLogs()">🗑️ Clear Logs</button>
+            </div>
+        </div>
+
+        <div id="alerts"></div>
+
+        <div class="connections-container">
+            <div class="connections-header">
+                <h3>📡 Active Network Connections</h3>
+                <input type="text" class="search-box" id="search" placeholder="Filter by IP address..." onkeyup="filterConnections()">
+            </div>
+            
+            <div class="table-wrapper">
+                <table class="connections-table" id="connections-table">
+                    <thead>
+                        <tr>
+                            <th>Local Address</th>
+                            <th>Remote Address</th>
+                            <th>Status</th>
+                            <th>Process ID</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="connections-body">
+                        {% if connections %}
+                            {% for conn in connections %}
+                            <tr data-remote-ip="{{ conn.remote_ip }}">
+                                <td>
+                                    <span class="ip-address">{{ conn.local_ip }}</span>
+                                    <span class="port">:{{ conn.local_port }}</span>
+                                </td>
+                                <td>
+                                    <span class="ip-address">{{ conn.remote_ip }}</span>
+                                    <span class="port">:{{ conn.remote_port }}</span>
+                                </td>
+                                <td>
+                                    <span class="status-badge status-{{ conn.status.lower() }}">{{ conn.status }}</span>
+                                </td>
+                                <td>{{ conn.pid if conn.pid else 'N/A' }}</td>
+                                <td>
+                                    <button class="btn btn-danger btn-small" onclick="blockIP('{{ conn.remote_ip }}')">🚫 Block</button>
+                                    <button class="btn btn-small" onclick="analyzeConnection('{{ conn.remote_ip }}', {{ conn.remote_port }})">🔍 Analyze</button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="5">
+                                    <div class="empty-state">
+                                        <div class="empty-state-icon">🔍</div>
+                                        <h3>No Active Connections</h3>
+                                        <p>No network connections are currently established.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        let lastUpdateTime = Date.now();
+        
+        // Update last update timer
+        setInterval(() => {
+            const seconds = Math.floor((Date.now() - lastUpdateTime) / 1000);
+            document.getElementById('last-update').textContent = seconds;
+        }, 1000);
+
+        socket.on('new_connection', function(data) {
+            showAlert(`🚨 New connection detected: ${data.remote_ip}:${data.remote_port}`, 'warning');
+            lastUpdateTime = Date.now();
+            refreshConnections();
+        });
+
+        function showAlert(message, type = 'success') {
+            const alertsDiv = document.getElementById('alerts');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            alertsDiv.appendChild(alert);
+            
+            setTimeout(() => {
+                if (alertsDiv.contains(alert)) {
+                    alertsDiv.removeChild(alert);
+                }
+            }, 5000);
+        }
+
+        function refreshConnections() {
+            fetch('/api/get_connections')
+                .then(response => response.json())
+                .then(data => {
+                    updateConnectionsTable(data);
+                    updateStats(data);
+                    lastUpdateTime = Date.now();
+                    showAlert(`Refreshed: ${data.length} active connections found`, 'success');
+                })
+                .catch(error => {
+                    showAlert('Error refreshing connections: ' + error, 'error');
+                });
+        }
+
+        function updateConnectionsTable(connections) {
+            const tbody = document.getElementById('connections-body');
+            
+            if (connections.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5">
+                            <div class="empty-state">
+                                <div class="empty-state-icon">🔍</div>
+                                <h3>No Active Connections</h3>
+                                <p>No network connections are currently established.</p>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = connections.map(conn => `
+                <tr data-remote-ip="${conn.remote_ip}">
+                    <td>
+                        <span class="ip-address">${conn.local_ip}</span>
+                        <span class="port">:${conn.local_port}</span>
+                    </td>
+                    <td>
+                        <span class="ip-address">${conn.remote_ip}</span>
+                        <span class="port">:${conn.remote_port}</span>
+                    </td>
+                    <td>
+                        <span class="status-badge status-${conn.status.toLowerCase()}">${conn.status}</span>
+                    </td>
+                    <td>${conn.pid || 'N/A'}</td>
+                    <td>
+                        <button class="btn btn-danger btn-small" onclick="blockIP('${conn.remote_ip}')">🚫 Block</button>
+                        <button class="btn btn-small" onclick="analyzeConnection('${conn.remote_ip}', ${conn.remote_port})">🔍 Analyze</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function updateStats(connections) {
+            document.getElementById('total-connections').textContent = connections.length;
+            
+            // Count monitored connections (this would need to be implemented based on your monitoring criteria)
+            const monitoredCount = connections.filter(conn => 
+                conn.remote_ip.startsWith('5.231.32.') // Example criteria
+            ).length;
+            document.getElementById('monitored-connections').textContent = monitoredCount;
+        }
+
+        function blockIP(ip) {
+            if (!confirm(`Are you sure you want to block IP address ${ip}?`)) {
+                return;
+            }
+
+            fetch('/api/block_ip', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ ip: ip })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert(`IP ${ip} has been blocked successfully`, 'success');
+                    // Remove the row from the table
+                    const row = document.querySelector(`tr[data-remote-ip="${ip}"]`);
+                    if (row) {
+                        row.remove();
+                    }
+                } else {
+                    showAlert(`Failed to block IP ${ip}: ${data.error}`, 'error');
+                }
+            })
+            .catch(error => {
+                showAlert('Error blocking IP: ' + error, 'error');
+            });
+        }
+
+        function analyzeConnection(ip, port) {
+            showAlert(`Analyzing connection from ${ip}:${port}...`, 'success');
+            // This would typically open a detailed analysis view or modal
+        }
+
+        function filterConnections() {
+            const searchTerm = document.getElementById('search').value.toLowerCase();
+            const rows = document.querySelectorAll('#connections-body tr');
+            
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(searchTerm) ? '' : 'none';
+            });
+        }
+
+        function exportData() {
+            window.open('/api/generate_report', '_blank');
+            showAlert('Connection data exported successfully', 'success');
+        }
+
+        function clearLogs() {
+            if (!confirm('Are you sure you want to clear all connection logs? This action cannot be undone.')) {
+                return;
+            }
+            
+            showAlert('Log clearing functionality would be implemented here', 'warning');
+        }
+
+        // Auto-refresh every 30 seconds
+        setInterval(refreshConnections, 30000);
+
+        // Initial load
+        document.addEventListener('DOMContentLoaded', function() {
+            refreshConnections();
+        });
+    </script>
+</body>
+</html>
